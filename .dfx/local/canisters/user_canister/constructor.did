@@ -1,0 +1,33 @@
+type Campaign = record {
+  id : CampaignId;
+  owner : UserId;
+  name : text;
+  createdAt : nat64;
+  acceptedTokens : vec text;
+  subaccount : blob;
+  description : text;
+};
+type CampaignId = text;
+type User = record {
+  id : UserId;
+  name : text;
+  createdAt : nat64;
+  email : opt text;
+};
+type UserCanister = service {
+  clearUsers : () -> ();
+  createCampaign : (text, text, vec text) -> (text);
+  createUser : (text, opt text) -> (bool);
+  debugCompare : (UserId) -> (vec record { text; principal; bool }) query;
+  debugPrincipal : (UserId) -> (text) query;
+  getAllCampaigns : () -> (vec Campaign) query;
+  getAllUsers : () -> (vec User) query;
+  getCampaign : (text) -> (opt Campaign) query;
+  getCampaignSubaccount : (text) -> (opt blob) query;
+  getPrincipal : () -> (principal) query;
+  getUserCampaigns : (UserId) -> (vec Campaign) query;
+  userExists : () -> (bool) query;
+  whoami : () -> (principal);
+};
+type UserId = principal;
+service : () -> UserCanister
