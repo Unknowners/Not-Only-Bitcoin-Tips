@@ -1,0 +1,30 @@
+type UserId = principal;
+type CampaignId = text;
+
+type User = record {
+  id: UserId;
+  name: text;
+  email: opt text;
+  createdAt: int;
+};
+
+type Campaign = record {
+  id: CampaignId;
+  name: text;
+  description: text;
+  owner: UserId;
+  acceptedTokens: vec text;
+  subaccount: blob;
+  createdAt: int;
+};
+
+service : {
+  createUser: (name: text, email: opt text) -> (bool);
+  createCampaign: (name: text, description: text, acceptedTokens: vec text) -> (text);
+  getCampaign: (id: text) -> (opt Campaign) query;
+  getCampaignSubaccount: (id: text) -> (opt blob) query;
+  getUserCampaigns: (userId: text) -> (vec Campaign) query;
+  whoami: () -> (principal) query;
+  userExists: () -> (bool) query;
+  clearUsers: () -> ();
+} 
