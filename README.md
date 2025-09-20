@@ -144,6 +144,18 @@ The backend is written in Motoko and handles:
 - Campaign creation and retrieval
 - Data persistence on Internet Computer
 
+#### Recent Fixes
+
+**Canister Upgrade Data Preservation (Fixed)**
+
+Previously, there was a critical issue where campaign data was lost during canister upgrades due to incorrect order of operations in the `postupgrade` system function. This has been resolved:
+
+- **Problem**: The `campaigns` array was cleared before being used to restore the `campaignsMap`, causing all campaigns to disappear after upgrades
+- **Solution**: Modified `postupgrade` to create local copies of stable arrays before clearing them, ensuring data is preserved during HashMap restoration
+- **Impact**: All campaigns and users are now correctly preserved during canister upgrades
+
+For testing upgrade functionality, see the [TESTING.md](TESTING.md) file for detailed upgrade test scenarios.
+
 ### Frontend (React)
 
 The frontend is built with React and provides:

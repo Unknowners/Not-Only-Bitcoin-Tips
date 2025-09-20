@@ -73,6 +73,113 @@ cd frontend && npm run dev
 - [ ] User data is saved correctly
 - [ ] Campaign retrieval works properly
 
+### Canister Upgrade Testing
+
+**Critical Test: Data Preservation During Upgrade**
+
+This test verifies that campaigns and users are preserved during canister upgrades.
+
+#### Manual Test Scenario:
+
+1. **Setup Initial Data:**
+   ```bash
+   # Deploy canister
+   dfx deploy user_canister
+   
+   # Create test user and campaign via Candid UI or frontend
+   # Note the campaign ID for verification
+   ```
+
+2. **Create Test Campaign:**
+   - Create a user account
+   - Create at least one campaign with name "Test Campaign Before Upgrade"
+   - Record the campaign ID returned
+   - Verify campaign exists: `getCampaign(campaignId)`
+
+3. **Perform Canister Upgrade:**
+   ```bash
+   # Upgrade the canister (this triggers preupgrade/postupgrade)
+   dfx deploy user_canister --mode upgrade
+   ```
+
+4. **Verify Data Preservation:**
+   - Call `getCampaign(campaignId)` - should return the campaign
+   - Call `getAllCampaigns()` - should include the test campaign
+   - Verify campaign details match original data
+   - Check that `campaignsMap.size()` matches expected count
+
+5. **Expected Results:**
+   - [ ] Campaign exists after upgrade
+   - [ ] Campaign data is identical to pre-upgrade state
+   - [ ] All campaign fields are preserved (name, description, owner, etc.)
+   - [ ] No data loss occurs during upgrade process
+
+#### Debug Information:
+
+The postupgrade function now includes debug logging. Check dfx logs for:
+```
+Postupgrade completed: restored X users and Y campaigns
+```
+
+#### Complete Data Preservation Verification:
+
+**All Stable Data (Preserved during upgrade):**
+1. **Users**: All user accounts with id, name, email, createdAt
+2. **Campaigns**: All campaigns with complete details including subaccounts
+3. **Initializer Principal**: The original deployer Principal (newly added)
+
+**Test all preserved data:**
+```bash
+# After upgrade, verify:
+dfx canister call user_canister getAllUsers
+dfx canister call user_canister getAllCampaigns  
+dfx canister call user_canister getInitializerPrincipal
+dfx canister call user_canister userExists
+```
+
+#### Critical Test: Wallet Address Preservation
+
+**Wallet addresses are FULLY preserved during upgrades!**
+
+1. **Before upgrade - record wallet data:**
+   ```bash
+   # Get campaign details including subaccount
+   dfx canister call user_canister getCampaign '("your_campaign_id")'
+   dfx canister call user_canister getCampaignSubaccount '("your_campaign_id")'
+   
+   # Note the subaccount blob for comparison
+   ```
+
+2. **After upgrade - verify wallet access:**
+   ```bash
+   # Same commands should return identical results
+   dfx canister call user_canister getCampaign '("your_campaign_id")'
+   dfx canister call user_canister getCampaignSubaccount '("your_campaign_id")'
+   
+   # Subaccount blob must be IDENTICAL
+   # Frontend will generate the same ICP address
+   ```
+
+3. **Wallet Address Components (All Preserved):**
+   - ✅ **Campaign ID**: Stored in stable `campaigns` array
+   - ✅ **Subaccount**: 32-byte blob stored in `campaign.subaccount`
+   - ✅ **Canister Principal**: Never changes for the canister
+   - ✅ **Generation Algorithm**: Deterministic (same inputs = same address)
+
+4. **Expected Results:**
+   - [ ] Same campaign ID returns identical subaccount
+   - [ ] Frontend generates identical ICP address
+   - [ ] All existing wallet addresses remain accessible
+   - [ ] No funds are lost or become inaccessible
+
+#### Automated Test (Future Enhancement):
+
+For automated testing, consider creating a Motoko test file that:
+1. Simulates preupgrade by calling the system function
+2. Verifies stable variable contents
+3. Simulates postupgrade and verifies HashMap restoration
+4. Confirms no data loss occurred
+
 ## API Testing
 
 ### User Canister Methods

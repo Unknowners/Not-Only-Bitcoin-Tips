@@ -1,5 +1,6 @@
 import Principal "mo:base/Principal";
 import Text "mo:base/Text";
+import Nat "mo:base/Nat";
 import Nat64 "mo:base/Nat64";
 import Time "mo:base/Time";
 import HashMap "mo:base/HashMap";
@@ -37,6 +38,7 @@ shared({ caller = initializer }) actor class UserCanister() = {
     // Storage
     private stable var users: [(UserId, User)] = [];
     private stable var campaigns: [(CampaignId, Campaign)] = [];
+    private stable var initializerPrincipal: ?Principal = null;
     
     private var usersMap = HashMap.HashMap<UserId, User>(0, Principal.equal, Principal.hash);
     private var campaignsMap = HashMap.HashMap<CampaignId, Campaign>(0, Text.equal, Text.hash);
@@ -45,13 +47,26 @@ shared({ caller = initializer }) actor class UserCanister() = {
     system func preupgrade() {
         users := Iter.toArray(usersMap.entries());
         campaigns := Iter.toArray(campaignsMap.entries());
+        // Зберігаємо initializer Principal, якщо він ще не збережений
+        if (Option.isNull(initializerPrincipal)) {
+            initializerPrincipal := ?initializer;
+        };
     };
 
     system func postupgrade() {
-        usersMap := HashMap.fromIter<UserId, User>(users.vals(), 0, Principal.equal, Principal.hash);
+        // Створюємо локальні копії стійких масивів перед їх очищенням
+        let usersBackup = users;
+        let campaignsBackup = campaigns;
+        
+        // Відновлюємо HashMap з локальних копій
+        usersMap := HashMap.fromIter<UserId, User>(usersBackup.vals(), usersBackup.size(), Principal.equal, Principal.hash);
+        campaignsMap := HashMap.fromIter<CampaignId, Campaign>(campaignsBackup.vals(), campaignsBackup.size(), Text.equal, Text.hash);
+        
+        // Очищуємо стійкі масиви лише після успішного відновлення HashMap
+        users := [];
         campaigns := [];
-        campaignsMap := HashMap.fromIter<CampaignId, Campaign>(campaigns.vals(), 0, Text.equal, Text.hash);
-        campaigns := [];
+        
+        Debug.print("Postupgrade completed: restored " # Nat.toText(usersMap.size()) # " users and " # Nat.toText(campaignsMap.size()) # " campaigns");
     };
 
     // Authentication
@@ -82,7 +97,11 @@ shared({ caller = initializer }) actor class UserCanister() = {
     };
 
     public query func userExists() : async Bool {
-        switch (usersMap.get(initializer)) {
+        let principalToCheck = switch (initializerPrincipal) {
+            case (?p) { p };
+            case null { initializer }; // Fallback для першого запуску
+        };
+        switch (usersMap.get(principalToCheck)) {
             case (?user) { return true; };
             case null { return false; };
         };
@@ -160,12 +179,19 @@ shared({ caller = initializer }) actor class UserCanister() = {
     // Debug functions
     public query func debugCompare(userId: UserId) : async [(Text, Principal, Bool)] {
         let userPrincipal = userId;
-        let initializerPrincipal = initializer;
-        let isEqual = Principal.equal(userPrincipal, initializerPrincipal);
+        let storedInitializer = switch (initializerPrincipal) {
+            case (?p) { p };
+            case null { initializer }; // Fallback для першого запуску
+        };
+        let isEqual = Principal.equal(userPrincipal, storedInitializer);
         return [("User Principal", userPrincipal, isEqual)];
     };
 
     public query func debugPrincipal(userId: UserId) : async Text {
         Principal.toText(userId)
+    };
+
+    public query func getInitializerPrincipal() : async ?Principal {
+        initializerPrincipal
     };
 }; 
